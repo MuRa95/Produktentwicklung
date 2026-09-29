@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="de" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Inliner Station – Steuerung und Zeitvergleich</title>
+  <style>
+    :root{--ink:#152536;--muted:#526779;--line:#d9e3ea;--bg:#f4f7fa;--card:#fff;--blue:#1766a3;--pale:#e8f3fb;--green:#0b7655;--red:#b23d3d;--amber:#996108}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+    .wrap{max-width:1180px;margin:0 auto;padding:32px 20px 60px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:25px}
+    h1{font-size:clamp(1.7rem,3vw,2.5rem);line-height:1.15;margin:0 0 9px;letter-spacing:-.025em}h2{font-size:1.23rem;margin:0 0 14px}h3{font-size:1rem;margin:0 0 10px}
+    p{margin:0 0 11px}.sub{color:var(--muted);max-width:75ch}.tag{font-size:.75rem;font-weight:700;color:var(--blue);background:var(--pale);padding:7px 11px;border-radius:999px;white-space:nowrap}
+    .grid{display:grid;grid-template-columns:minmax(340px,1fr) minmax(360px,1.13fr);gap:18px;align-items:start}.stack{display:grid;gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:21px;box-shadow:0 5px 22px #17304b0a}
+    .hint{font-size:.88rem;color:var(--muted)}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 13px}.field label{display:block;font-weight:650;font-size:.87rem;margin-bottom:5px}.field input[type=text]{width:100%;padding:10px;border:1px solid #aabcc9;border-radius:9px;background:#fff;color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}.field input:focus{outline:3px solid #bddff5;border-color:var(--blue)}
+    .checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check{display:flex;gap:8px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:.88rem}.check input{width:17px;height:17px;accent-color:var(--blue)}
+    table{width:100%;border-collapse:collapse;font-size:.91rem}th{text-align:left;color:var(--muted);font-weight:700;font-size:.78rem}td,th{border-bottom:1px solid var(--line);padding:9px 6px}td:first-child,th:first-child{padding-left:0}td:last-child,th:last-child{padding-right:0;text-align:right}
+    td input{width:82px;max-width:100%;padding:7px;border:1px solid #aabcc9;border-radius:7px;font:inherit;text-align:right}tfoot td{font-weight:750;background:#f5f9fc}
+    .actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:17px}button{border:1px solid var(--blue);border-radius:9px;background:var(--blue);color:white;font:inherit;font-weight:700;padding:10px 14px;cursor:pointer}button:hover{filter:brightness(.94)}button:disabled{opacity:.55;cursor:not-allowed}.secondary{background:#fff;color:var(--blue)}
+    .results{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fbfdff}.metric small{display:block;color:var(--muted);font-size:.78rem}.metric strong{display:block;font-size:1.48rem;margin-top:3px;font-variant-numeric:tabular-nums}.metric.good strong{color:var(--green)}
+    .status{margin-top:14px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:#f5f9fc;font-weight:650}.status.ok{background:#e8f6ee;border-color:#a7d6bd;color:#095d42}.status.error{background:#fff0ef;border-color:#e8b0ae;color:#902e2b}.status.warn{background:#fff8e9;border-color:#ead39d;color:#78500c}
+    .machine{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:13px 0}.node{min-height:76px;padding:10px;border-radius:11px;border:1px solid var(--line);background:#f8fafb}.node b{display:block;font-size:.83rem}.node span{display:block;color:var(--muted);font-size:.77rem;margin-top:3px}.node.active{border-color:#68b39a;background:#e8f6ee}.node.fault{border-color:#de9994;background:#fff0ef}
+    .stepbar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:15px 0}.step{padding:8px 4px;text-align:center;border-radius:8px;background:#e7edf2;color:#506273;font-size:.74rem;font-weight:700}.step.active{background:var(--blue);color:#fff}.step.done{background:#d9f1e5;color:#0d674b}.step.failed{background:#ffe1dc;color:#a1342d}
+    .chart-wrap{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fbfdff}.chart-wrap canvas{display:block;width:100%;height:auto}.tempo{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:.88rem;font-weight:650}.tempo select{font:inherit;color:var(--ink);padding:8px;border:1px solid #aabcc9;border-radius:8px;background:#fff}
+    .schematic{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:12px;background:#f8fcff}.schematic .wire{fill:none;stroke:#b66a1e;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.schematic .neutral{stroke:#346da0}.schematic .earth{stroke:#21815b;stroke-dasharray:8 5}.schematic .block{fill:#fff;stroke:#a7bdcb;stroke-width:2}.schematic .load{fill:#e9f4fb;stroke:#8abbd8;stroke-width:2}.schematic .protect{fill:#fff1df;stroke:#dbac69;stroke-width:2}.schematic text{font:700 14px system-ui,Arial,sans-serif;fill:#21384a}.schematic .small{font-size:12px;font-weight:500;fill:#546a79}.schematic .value{font-size:12px;fill:#0b7655}.schematic .terminal{font-size:13px;fill:#fff}
+    .io{display:grid;grid-template-columns:1fr 1fr;gap:14px}.io ul{margin:0;padding-left:18px;font-size:.86rem}.io li{margin-bottom:6px}.note{border-left:3px solid var(--blue);padding-left:13px;color:var(--muted);font-size:.89rem;margin-top:16px}
+    .model-layout{display:grid;grid-template-columns:1fr;gap:13px}.model-scene{border:1px solid #c9d9e5;border-radius:13px;overflow:hidden}.model-scene canvas{width:100%;height:auto;display:block;aspect-ratio:16/9}.model-copy{padding:12px 14px;border:1px solid #d5e5ef;border-radius:11px;background:#f5faff}.model-copy p{font-size:.89rem;color:var(--muted)}.model-badge{display:inline-block;border-radius:999px;padding:4px 9px;background:var(--pale);color:var(--blue);font-size:.74rem;font-weight:750;margin-bottom:8px}.model-control{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:.84rem;font-weight:650}.model-control input{width:100%;accent-color:var(--blue)}.model-key{display:flex;flex-wrap:wrap;gap:11px;margin-top:9px;font-size:.76rem;color:var(--muted)}.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle}.swatch.bag{background:#55b5da}.swatch.jaw{background:#f2a54f}.swatch.product{background:#8391b6}
+    footer{color:var(--muted);font-size:.83rem;margin-top:22px}a{color:var(--blue)}
+    @media(max-width:850px){header{display:block}.tag{display:inline-block;margin-top:10px}.grid{grid-template-columns:1fr}.machine{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:520px){.wrap{padding:18px 12px 35px}.card{padding:15px}.formgrid,.checks,.results,.io{grid-template-columns:1fr}.stepbar{grid-template-columns:repeat(3,1fr)}td input{width:63px}}
+    @media(max-width:600px){.model-layout{grid-template-columns:1fr}}
+    @media print{body{background:white}.wrap{padding:0}.card{box-shadow:none;break-inside:avoid}.actions,.tag{display:none}.grid{display:block}.card{margin-bottom:12px}input{border-color:transparent!important}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header><div><h1>Inliner Station</h1><p class="sub">Interaktives Beispiel für die Steuerung einer Vakuum- und Schweißstation. Ändere die Eingaben, prüfe die Freigaben und vergleiche die Zeiten des heutigen und vorgeschlagenen Ablaufs.</p></div><span class="tag">Projekt 4 · Lernmodell</span></header>
+  <div class="grid">
+    <div class="stack">
+      <section class="card"><h2>1 · Freigaben und Prozesswerte</h2>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="guard" checked> Schutzeinrichtung geschlossen</label>
+          <label class="check"><input type="checkbox" id="bag" checked> Inliner positioniert</label>
+          <label class="check"><input type="checkbox" id="vacReady" checked> Vakuumgerät bereit</label>
+          <label class="check"><input type="checkbox" id="sealReady" checked> Schweißgerät bereit</label>
+        </div>
+        <div class="formgrid" style="margin-top:16px">
+          <div class="field"><label for="vacTarget">Vakuum-Grenzwert (kPa absolut)</label><input id="vacTarget" type="text" inputmode="decimal" value="30"></div>
+          <div class="field"><label for="vacActual">Erreichter Druck (kPa absolut)</label><input id="vacActual" type="text" inputmode="decimal" value="25"></div>
+          <div class="field"><label for="tempMin">Schweißtemperatur min. (°C)</label><input id="tempMin" type="text" inputmode="decimal" value="155"></div>
+          <div class="field"><label for="tempMax">Schweißtemperatur max. (°C)</label><input id="tempMax" type="text" inputmode="decimal" value="175"></div>
+          <div class="field"><label for="tempActual">Gemessene Temperatur (°C)</label><input id="tempActual" type="text" inputmode="decimal" value="165"></div>
+          <div class="field"><label for="quantity">Inliner pro Schicht (Stück)</label><input id="quantity" type="text" inputmode="numeric" value="100"></div>
+        </div>
+        <p class="hint" style="margin-top:12px">Zahlen bitte deutsch eingeben, zum Beispiel <strong>25,5</strong>. Beispielwerte sind keine Vorgaben für eure Maschine. Bei kPa absolut entspricht ein kleinerer Druck einem stärkeren Vakuum.</p>
+      </section>
+      <section class="card"><h2>2 · Zeiten je Inliner</h2>
+        <p class="hint">Trage gemessene Ist-Zeiten und eure geplanten Soll-Zeiten in Sekunden ein. Die Tabelle summiert einen vollständigen Zyklus.</p>
+        <table aria-label="Prozesszeiten"><thead><tr><th>Prozessschritt</th><th>Ist (s)</th><th>Soll (s)</th></tr></thead><tbody id="timeRows"></tbody><tfoot><tr><td>Gesamt</td><td id="sumCurrent">–</td><td id="sumProposed">–</td></tr></tfoot></table>
+        <label class="tempo" for="demoTempo">Zeit zum Lesen je Schritt <select id="demoTempo"><option value="3">3 Sekunden</option><option value="5" selected>5 Sekunden</option><option value="8">8 Sekunden</option></select></label>
+        <div class="actions"><button id="run" type="button">Ablauf starten</button><button id="stop" class="secondary" type="button" disabled>Stoppen</button><button id="reset" class="secondary" type="button">Beispielwerte zurücksetzen</button></div>
+      </section>
+      <section class="card"><h2>3 · Elektrische Beispielwerte</h2><p class="hint">Einphasiger Netzanschluss; editierbare Annahmen für eine Abschätzung. Werte vom Typenschild und aus den Herstellerunterlagen haben Vorrang.</p>
+        <div class="formgrid">
+          <div class="field"><label for="networkU">Netzspannung U (V AC)</label><input id="networkU" type="text" inputmode="decimal" value="230"></div>
+          <div class="field"><label for="pumpP">Pumpe: Wirkleistung P (W)</label><input id="pumpP" type="text" inputmode="decimal" value="750"></div>
+          <div class="field"><label for="pumpPF">Pumpe: Leistungsfaktor cos φ</label><input id="pumpPF" type="text" inputmode="decimal" value="0,85"></div>
+          <div class="field"><label for="sealP">Heizung: Wirkleistung P (W)</label><input id="sealP" type="text" inputmode="decimal" value="1.200"></div>
+          <div class="field"><label for="controlU">Steuerung: Spannung (V DC)</label><input id="controlU" type="text" inputmode="decimal" value="24"></div>
+          <div class="field"><label for="controlP">Steuerung: Leistung (W DC)</label><input id="controlP" type="text" inputmode="decimal" value="15"></div>
+          <div class="field"><label for="psuEff">Netzteil: Wirkungsgrad η</label><input id="psuEff" type="text" inputmode="decimal" value="0,85"></div>
+          <div class="field"><label for="psuPF">Netzteil: Leistungsfaktor cos φ</label><input id="psuPF" type="text" inputmode="decimal" value="0,90"></div>
+        </div><p class="hint" style="margin-top:12px">Näherung: P = U · I · cos φ; bei DC: P = U · I. Für die Heizung wird cos φ ≈ 1 angenommen. Stromspitzen beim Einschalten und die tatsächliche Phasenlage sind hier nicht modelliert.</p>
+      </section>
+      <section class="card"><h2>4 · Grenzwerte für die Demo</h2><p class="hint">Ändere die Messwerte, um Fehlerfälle zu zeigen. Ein überschrittener Grenzwert sperrt oder stoppt den simulierten Ablauf. Die Grenzwerte müssen später vom Betreiber und Hersteller festgelegt werden.</p>
+        <div class="formgrid">
+          <div class="field"><label for="currentMax">Netzstrom maximal (A)</label><input id="currentMax" type="text" inputmode="decimal" value="6"></div>
+          <div class="field"><label for="currentActual">Gemessener Strom beim Schweißen (A)</label><input id="currentActual" type="text" inputmode="decimal" value="5,2"></div>
+          <div class="field"><label for="vacMin">Druck-Untergrenze (kPa absolut)</label><input id="vacMin" type="text" inputmode="decimal" value="15"></div>
+        </div><p class="hint" style="margin-top:12px">Die Druck-Obergrenze und die Temperaturgrenzen stehen oben bei den Prozesswerten. Niedrigerer absoluter Druck bedeutet stärkeres Vakuum.</p>
+      </section>
+    </div>
+    <div class="stack">
+      <section class="card"><h2>Ergebnis des Zeitvergleichs</h2><div class="results">
+        <div class="metric"><small>Ist-Zyklus</small><strong id="currentResult">–</strong></div>
+        <div class="metric"><small>Soll-Zyklus</small><strong id="proposedResult">–</strong></div>
+        <div class="metric good"><small>Zeitersparnis je Inliner</small><strong id="savingResult">–</strong></div>
+        <div class="metric good"><small>Zeitersparnis je Schicht</small><strong id="shiftResult">–</strong></div>
+      </div><p class="hint" id="rateResult" style="margin-top:12px"></p><div id="calcStatus" class="status" role="status" aria-live="polite"></div></section>
+      <section class="card"><h2>Spannung, Strom und Leistung im Soll-Zyklus</h2><p class="hint">Die Kurven zeigen vereinfachte Betriebszustände. Der senkrechte Strich folgt während der Demo dem erklärten Schritt.</p>
+        <div class="results" style="margin:12px 0"><div class="metric"><small>Max. angenommene Wirkleistung</small><strong id="peakPower">–</strong></div><div class="metric"><small>Max. geschätzter Netzstrom</small><strong id="peakCurrent">–</strong></div><div class="metric"><small>Steuerstrom bei DC</small><strong id="controlCurrent24">–</strong></div><div class="metric"><small>Netzspannung</small><strong id="voltageResult">–</strong></div></div>
+        <div class="chart-wrap"><canvas id="electricalChart" width="1000" height="510" role="img" aria-label="Drei Zeitdiagramme für Netzspannung, geschätzten Netzstrom und Wirkleistung während des Soll-Zyklus">Diagramm benötigt Canvas-Unterstützung.</canvas></div>
+        <p class="hint" id="electricalNote" style="margin-top:11px"></p>
+      </section>
+      <section class="card"><h2>Simulierte Grenzwertprüfung</h2><p class="hint">Die Anzeige reagiert auf deine Eingaben; während der Demo erscheint ein Fehler in der passenden Phase.</p><div id="safetyChecks" aria-live="polite"></div>
+        <p class="note"><strong>Für die echte Anlage:</strong> Eine Risikobeurteilung legt die notwendigen Schutzfunktionen fest. Danach werden Schaltung, Sensoren, Abschaltverhalten und Wiederanlauf an der Maschine geprüft und dokumentiert. Diese HTML-Demo ist keine Sicherheitsvalidierung und kein Ersatz für Überstromschutz oder Temperaturbegrenzung.</p>
+      </section>
+      <section class="card"><h2>3D-Ansicht des Arbeitsablaufs</h2><div class="model-layout">
+        <div class="model-scene"><canvas id="modelCanvas" width="640" height="360" role="img" aria-label="Drehbare räumliche Darstellung von Inliner, Absaugdüse und Schweißbacken">Dein Browser unterstützt die 3D-Ansicht nicht.</canvas></div>
+        <div class="model-copy"><span class="model-badge" id="modelBadge">Bereit</span><h3 id="modelTitle">Inliner einlegen</h3><p id="modelText">Die Bedienperson legt die Beutel in den geöffneten Inliner und richtet die Folie aus.</p><div class="model-key"><span><i class="swatch bag"></i>Inliner</span><span><i class="swatch product"></i>Beutel</span><span><i class="swatch jaw"></i>Schweißbacken</span></div></div>
+      </div><label class="model-control" for="viewAngle">Ansicht drehen <input id="viewAngle" type="range" min="-55" max="55" value="-28" aria-label="3D-Ansicht drehen"></label><p class="hint">Schematische 3D-Ansicht: Die Bauteile und Bewegungen dienen zur Erklärung, nicht als technische Zeichnung. Starte den Ablauf, um die Phasen zu sehen.</p></section>
+      <section class="card"><h2>Vereinfachtes Steuerungsbild</h2><p class="hint">Die grünen Felder zeigen aktive Ausgänge während der Demo. Die Geräte und Schnittstellen sind Platzhalter.</p>
+        <div class="machine">
+          <div class="node" id="nSupply"><b>Q1 / G1</b><span>Versorgung / 24 V</span></div>
+          <div class="node" id="nControl"><b>A1</b><span>Steuerung und Eingänge</span></div>
+          <div class="node" id="nSafety"><b>SR1</b><span>Sicherheitsfreigabe</span></div>
+          <div class="node" id="nPump"><b>K1 / M1</b><span>Vakuumpumpe</span></div>
+          <div class="node" id="nValve"><b>Y1</b><span>Vakuumventil</span></div>
+          <div class="node" id="nSeal"><b>K2 / H1</b><span>Schweißgerät</span></div>
+        </div>
+        <div class="stepbar" id="stepbar" aria-label="Ablaufphasen"></div>
+        <div id="runStatus" class="status" role="status" aria-live="polite">Bereit. Werte eingeben und „Ablauf starten“ wählen.</div>
+        <p class="note">Das Modell schaltet nur Anzeigen auf dieser Seite. Die Ausgänge werden bei einer simulierten Störung deaktiviert. Es erzeugt keine reale Verdrahtung oder physikalische Vorhersage des Vakuumverlaufs.</p>
+      </section>
+      <section class="card"><h2>Beispielhafte Ein- und Ausgänge</h2><div class="io"><div><h3>Eingänge</h3><ul><li>Starttaster</li><li>Schutzeinrichtung geschlossen</li><li>Inliner positioniert</li><li>Druckmesswert</li><li>Temperaturmesswert</li><li>Strommesswert und Gerätebereitschaft</li></ul></div><div><h3>Ausgänge</h3><ul><li>K1: Pumpe anfordern</li><li>Y1: Ventil anfordern</li><li>K2: Schweißung anfordern</li><li>Status: fertig oder Störung</li></ul></div></div><p class="hint">Vor einer echten Planung Typenschilder, Schaltpläne, Messstellen und externe Geräteschnittstellen prüfen.</p></section>
+    </div>
+  </div>
+      <section class="card"><h2>Vereinfachtes elektrisches Ersatzschaltbild</h2><p class="hint">Beispiel für eine einphasige Station. Gelb: Außenleiter L; Blau: Neutralleiter N; Grün: Schutzleiter PE. F1–F4 und QF0 sind Schutzstellen, deren reale Ausführung offen ist. T1 steht für eine separate Temperaturbegrenzung als zu prüfende Schutzmaßnahme.</p>
+        <svg class="schematic" viewBox="0 0 1000 480" role="img" aria-label="Schematische Stromversorgung mit Hauptschalter, Schutzstellen und getrennten Zweigen für Vakuumpumpe, Heizung und 24-Volt-Steuerung">
+          <rect x="0" y="0" width="1000" height="480" fill="#f8fcff"/>
+          <path class="wire" d="M165 125 H205 M300 125 H330 M425 125 H905 M555 125 V175 M720 125 V175 M875 125 V175 M555 227 V236 M720 227 V236 M875 227 V236"/>
+          <path class="wire neutral" d="M165 363 H905 M555 340 V363 M720 340 V363 M875 340 V363"/>
+          <path class="wire earth" d="M165 415 H905"/>
+          <rect class="block" x="18" y="85" width="147" height="345" rx="13"/><text x="34" y="114">Netzanschluss</text><text class="small" x="34" y="143" id="schU">230 V AC</text><text class="small" x="34" y="166">1 Phase · Annahme</text><text x="34" y="201">L</text><text x="34" y="358">N</text><text x="34" y="410">PE</text>
+          <rect class="block" x="205" y="91" width="95" height="68" rx="10"/><text x="222" y="120">Q0</text><text class="small" x="215" y="143">Hauptschalter</text>
+          <rect class="protect" x="330" y="91" width="95" height="68" rx="10"/><text x="343" y="119">QF0</text><text class="small" x="342" y="141">? A prüfen</text>
+          <rect class="protect" x="490" y="175" width="130" height="52" rx="10"/><text x="503" y="198">F1 · Motor</text><text class="small" x="503" y="216">Schutz nach Daten</text>
+          <rect class="protect" x="655" y="175" width="130" height="52" rx="10"/><text x="668" y="198">F2 · Schutz</text><text class="small" x="668" y="216">Leitung / Gerät</text>
+          <rect class="protect" x="810" y="175" width="130" height="52" rx="10"/><text x="823" y="198">F3 · Schutz</text><text class="small" x="823" y="216">Netzteil-Eingang</text>
+          <rect class="load" x="490" y="236" width="130" height="104" rx="10"/><text x="503" y="260">K1 → M1</text><text class="small" x="503" y="281">Vakuumpumpe</text><text class="value" x="503" y="308" id="schPump">–</text>
+          <rect class="load" x="655" y="236" width="130" height="104" rx="10"/><text x="668" y="260">K2 · T1 · H1</text><text class="small" x="668" y="281">Schweißheizung</text><text class="value" x="668" y="308" id="schSeal">–</text>
+          <rect class="load" x="810" y="236" width="130" height="104" rx="10"/><text x="823" y="260">G1 → F4 → A1</text><text class="small" x="823" y="281">24-V-Steuerung</text><text class="value" x="823" y="308" id="schControl">–</text>
+          <text class="small" x="490" y="454">PE an berührbare Metallteile · Schutzfunktionen separat prüfen</text>
+        </svg>
+        <div class="formgrid" style="margin-top:14px"><div class="field"><label for="mainFuseCandidate">QF0: angenommener Nennstrom (A)</label><input id="mainFuseCandidate" type="text" inputmode="decimal" value="10"></div><div class="metric"><small>Maximaler geschätzter Betriebsstrom</small><strong id="schPeak">–</strong></div></div>
+        <div id="fuseStatus" class="status" role="status" aria-live="polite"></div>
+        <p class="note">Die 10 A sind nur eine veränderbare Rechenannahme, keine Empfehlung für eure Anlage. Ein Sicherungsnennstrom wird nicht allein aus Watt und Betriebsstrom bestimmt: Anlauf- und Fehlerströme, Leitungen, Abschaltbedingungen, Kurzschlussfestigkeit und Herstellerangaben müssen geprüft werden. Die 6-A-Grenze der Demo ist ein Prozesswert und keine physische Sicherung.</p>
+      </section>
+  <footer>Rechenhilfe für die Projektarbeit · Alle Daten bleiben im Browser auf diesem Gerät gespeichert · Ein einzelnes HTML-Dokument ohne Internetverbindung.<br>Fachliche Orientierung: <a href="https://www.iso.org/standard/51528.html" target="_blank" rel="noopener">ISO 12100</a> zur Risikobeurteilung, <a href="https://www.iso.org/standard/53640.html" target="_blank" rel="noopener">ISO 13849-2</a> zur Validierung von Sicherheitsfunktionen, <a href="https://webstore.iec.ch/en/publication/71256" target="_blank" rel="noopener">IEC 60204-1</a> zur elektrischen Ausrüstung und <a href="https://productinfo.se.com/tesys_t_user_guides/viewer?docidentity=D-SE-0063203&amp;extension=xml&amp;lang=en&amp;manualidentity=D-SE-0063613" target="_blank" rel="noopener">Schneider Electric</a> zur Leistungsberechnung und <a href="https://webstore.iec.ch/en/publication/28432" target="_blank" rel="noopener">IEC 60364-4-43:2023</a> zur Überstrom-Schutzauslegung. Das Schaltbild ist ein eigenes Lernbeispiel.</footer>
+</main>
+<script>
+(() => {
+  'use strict';
+  const defaults = {
+    guard:true, bag:true, vacReady:true, sealReady:true,
+    vacTarget:30, vacActual:25, tempMin:155, tempMax:175, tempActual:165, quantity:100,
+    networkU:230,pumpP:750,pumpPF:0.85,sealP:1200,controlU:24,controlP:15,psuEff:0.85,psuPF:0.90,
+    currentMax:6,currentActual:5.2,vacMin:15,mainFuseCandidate:10,
+    times:[
+      {name:'Inliner öffnen / Beutel einlegen',current:20,proposed:15},
+      {name:'Ausrichten und positionieren',current:15,proposed:8},
+      {name:'Vakuumieren',current:35,proposed:25},
+      {name:'Verschweißen',current:5,proposed:5},
+      {name:'Abkühlen',current:8,proposed:8},
+      {name:'Entnehmen und prüfen',current:12,proposed:10}
+    ]
+  };
+  const electricIds=['networkU','pumpP','pumpPF','sealP','controlU','controlP','psuEff','psuPF'];
+  const numericIds=['vacTarget','vacActual','tempMin','tempMax','tempActual','quantity',...electricIds,'currentMax','currentActual','vacMin','mainFuseCandidate'];
+  const checkIds=['guard','bag','vacReady','sealReady'];
+  const phases=['Freigabe','Einlegen','Ausrichten','Vakuum','Schweißen','Abkühlen','Prüfen'];
+  const $=id=>document.getElementById(id);
+  const fmt=(n,d=1)=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:d,minimumFractionDigits:0}).format(n);
+  let token=0, running=false, chartTime=null;
+  const numericInputIds=[...numericIds,...defaults.times.flatMap((_,i)=>['current'+i,'proposed'+i])];
+  const germanNumber=s=>{
+    const value=String(s).trim();
+    if(!/^(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?$/.test(value))return NaN;
+    return Number(value.replaceAll('.','').replace(',','.'));
+  };
+
+  function safeLoad(){
+    try{const raw=JSON.parse(localStorage.getItem('inliner-demo-v1'));
+      if(!raw||typeof raw!=='object')return structuredClone(defaults);
+      return {...structuredClone(defaults),...raw,times:defaults.times.map((t,i)=>({...t,...(raw.times?.[i]||{})}))};
+    }catch{return structuredClone(defaults);}
+  }
+  function buildRows(){
+    $('timeRows').replaceChildren();
+    defaults.times.forEach((t,i)=>{
+      const tr=document.createElement('tr');
+      const title=document.createElement('td');title.textContent=t.name;tr.append(title);
+      for(const key of ['current','proposed']){
+        const td=document.createElement('td'),input=document.createElement('input');
+        input.type='text';input.inputMode='decimal';input.id=`${key}${i}`;
+        input.setAttribute('aria-label',`${t.name}, ${key==='current'?'Ist':'Soll'} in Sekunden`);
+        td.append(input);tr.append(td);
+      }
+      $('timeRows').append(tr);
+    });
+  }
+  function apply(data){
+    checkIds.forEach(id=>$(id).checked=Boolean(data[id]));
+    numericIds.forEach(id=>$(id).value=fmt(Number(data[id]),2));
+    defaults.times.forEach((t,i)=>{for(const key of ['current','proposed'])$(key+i).value=fmt(Number(data.times[i][key]),2)});
+    calculate();
+  }
+  function read(){
+    const data={times:[]};
+    checkIds.forEach(id=>data[id]=$(id).checked);
+    numericIds.forEach(id=>data[id]=germanNumber($(id).value));
+    defaults.times.forEach((t,i)=>data.times.push({name:t.name,current:germanNumber($('current'+i).value),proposed:germanNumber($('proposed'+i).value)}));
+    return data;
+  }
+  function validate(d){
+    const vals=[...numericIds.map(id=>d[id]),...d.times.flatMap(t=>[t.current,t.proposed])];
+    if(vals.some(v=>!Number.isFinite(v)))return 'Zahlen bitte im deutschen Format eingeben, zum Beispiel 25,5 oder 1.000.';
+    if(d.times.some(t=>t.current<0||t.proposed<0||t.current>36000||t.proposed>36000))return 'Zeiten müssen zwischen 0 und 36.000 Sekunden liegen.';
+    if(d.times.reduce((s,t)=>s+t.current,0)<=0||d.times.reduce((s,t)=>s+t.proposed,0)<=0)return 'Ist- und Soll-Zyklus müssen jeweils größer als 0 sein.';
+    if(d.vacTarget<=0||d.vacTarget>101.3||d.vacActual<=0||d.vacActual>101.3||d.vacMin<=0||d.vacMin>d.vacTarget)return 'Druckwerte prüfen: 0 < Untergrenze ≤ Obergrenze ≤ 101,3 kPa absolut.';
+    if(d.tempMin<0||d.tempMax>500||d.tempActual<0||d.tempActual>500||d.tempMin>d.tempMax)return 'Temperaturwerte prüfen: Minimum ≤ Maximum und 0 bis 500 °C.';
+    if(!Number.isInteger(d.quantity)||d.quantity<1||d.quantity>100000)return 'Stückzahl als ganze Zahl zwischen 1 und 100.000 eingeben.';
+    if(d.networkU<=0||d.networkU>1000||d.controlU<=0||d.controlU>1000)return 'Die Spannungen müssen größer als 0 und höchstens 1.000 V sein.';
+    if(d.pumpP<0||d.sealP<0||d.controlP<0||d.pumpP>100000||d.sealP>100000||d.controlP>100000)return 'Leistungen müssen zwischen 0 und 100.000 W liegen.';
+    if([d.pumpPF,d.psuPF,d.psuEff].some(v=>v<=0||v>1))return 'Leistungsfaktoren und Wirkungsgrad müssen größer als 0 und höchstens 1 sein.';
+    if(d.currentMax<=0||d.currentMax>10000||d.currentActual<0||d.currentActual>10000)return 'Stromwerte prüfen: Grenzwert größer als 0, Messwert ab 0, jeweils höchstens 10.000 A.';
+    if(d.mainFuseCandidate<=0||d.mainFuseCandidate>1000)return 'Der angenommene Sicherungsnennstrom muss größer als 0 und höchstens 1.000 A sein.';
+    return '';
+  }
+  function setStatus(id,message,type=''){const el=$(id);el.textContent=message;el.className='status '+type;}
+  function calculate(){
+    const d=read(), error=validate(d);
+    if(error){['sumCurrent','sumProposed','currentResult','proposedResult','savingResult','shiftResult','peakPower','peakCurrent','controlCurrent24','voltageResult','schU','schPump','schSeal','schControl','schPeak'].forEach(id=>$(id).textContent='–');$('rateResult').textContent='';$('electricalNote').textContent='Bitte Eingaben korrigieren.';$('safetyChecks').replaceChildren();drawElectrical(null);setStatus('calcStatus',error,'error');setStatus('fuseStatus','Bitte Eingaben korrigieren.','error');return null;}
+    const current=d.times.reduce((s,t)=>s+t.current,0), proposed=d.times.reduce((s,t)=>s+t.proposed,0), saving=current-proposed;
+    $('sumCurrent').textContent=fmt(current,2)+' s';$('sumProposed').textContent=fmt(proposed,2)+' s';
+    $('currentResult').textContent=fmt(current,2)+' s';$('proposedResult').textContent=fmt(proposed,2)+' s';
+    $('savingResult').textContent=(saving>=0?'+':'')+fmt(saving,2)+' s';
+    $('shiftResult').textContent=(saving>=0?'+':'')+fmt(saving*d.quantity/3600,2)+' h';
+    $('rateResult').textContent=`Rechnerische Kapazität: ${fmt(3600/current,1)} → ${fmt(3600/proposed,1)} Inliner/h. Veränderung der Zykluszeit: ${fmt(saving/current*100,1)} %. Ohne Pausen, Störungen oder parallele Arbeitsschritte.`;
+    const electric=electricProfile(d);
+    const peak=Math.max(...electric.map(x=>x.i));
+    $('schU').textContent=fmt(d.networkU,2)+' V AC';
+    $('schPump').textContent=fmt(d.pumpP,2)+' W · '+fmt(d.pumpP/(d.networkU*d.pumpPF),2)+' A';
+    $('schSeal').textContent=fmt(d.sealP,2)+' W · '+fmt(d.sealP/d.networkU,2)+' A';
+    $('schControl').textContent=fmt(d.controlP,2)+' W · '+fmt(d.controlP/d.controlU,2)+' A DC';
+    $('schPeak').textContent=fmt(peak,2)+' A';
+    setStatus('fuseStatus',peak>d.mainFuseCandidate?`Schon der geschätzte Betriebsstrom (${fmt(peak,2)} A) liegt über der angenommenen QF0-Größe (${fmt(d.mainFuseCandidate,2)} A). Diese Annahme prüfen.`:`${fmt(peak,2)} A Betriebsstrom liegen unter den angenommenen ${fmt(d.mainFuseCandidate,2)} A für QF0. Das bestätigt die Eignung der Sicherung noch nicht.`,peak>d.mainFuseCandidate?'error':'warn');
+    $('peakPower').textContent=fmt(Math.max(...electric.map(x=>x.p)),2)+' W';
+    $('peakCurrent').textContent=fmt(Math.max(...electric.map(x=>x.i)),2)+' A';
+    $('controlCurrent24').textContent=fmt(d.controlP/d.controlU,2)+' A';
+    $('voltageResult').textContent=fmt(d.networkU,2)+' V AC';
+    $('electricalNote').textContent=`Netzteil am Eingang: ${fmt(d.controlP/d.psuEff,2)} W. Der Netzstrom addiert hier die geschätzten Zweigströme als Obergrenze. Netzspannung konstant; keine Einschaltspitzen oder Standby-Verbräuche weiterer Geräte.`;
+    drawElectrical(d,chartTime);
+    showChecks(d,electric);
+    setStatus('calcStatus',saving>0?'Der Soll-Prozess ist nach diesen Eingaben schneller.':saving===0?'Ist- und Soll-Zyklus sind gleich lang.':'Der Soll-Prozess dauert nach diesen Eingaben länger.',saving>0?'ok':'warn');
+    try{localStorage.setItem('inliner-demo-v1',JSON.stringify(d))}catch{}
+    return d;
+  }
+  function electricProfile(d){
+    const standby=d.controlP/d.psuEff;
+    const baseI=standby/(d.networkU*d.psuPF);
+    return d.times.map((t,index)=>({
+      duration:t.proposed,
+      p:standby+(index===2?d.pumpP:index===3?d.sealP:0),
+      i:baseI+(index===2?d.pumpP/(d.networkU*d.pumpPF):index===3?d.sealP/d.networkU:0)
+    }));
+  }
+  function showChecks(d,electric){
+    const peak=Math.max(...electric.map(x=>x.i));
+    const rows=[
+      ['Auslegung des Stromgrenzwerts',peak<=d.currentMax,`${fmt(peak,2)} A berechnet / ${fmt(d.currentMax,2)} A Grenze`],
+      ['Strommesswert beim Schweißen',d.currentActual<=d.currentMax,`${fmt(d.currentActual,2)} A gemessen / ${fmt(d.currentMax,2)} A Grenze`],
+      ['Temperatur im Prozessfenster',d.tempActual>=d.tempMin&&d.tempActual<=d.tempMax,`${fmt(d.tempActual,2)} °C / ${fmt(d.tempMin,2)}–${fmt(d.tempMax,2)} °C`],
+      ['Druck im Prozessfenster',d.vacActual>=d.vacMin&&d.vacActual<=d.vacTarget,`${fmt(d.vacActual,2)} kPa / ${fmt(d.vacMin,2)}–${fmt(d.vacTarget,2)} kPa absolut`]
+    ];
+    const box=$('safetyChecks');box.replaceChildren();
+    rows.forEach(([label,okay,detail])=>{const line=document.createElement('div');line.className='status '+(okay?'ok':'error');line.textContent=(okay?'✓ ':'⚠ ')+label+': '+detail;box.append(line)});
+  }
+  function drawElectrical(d,marker=null){
+    const canvas=$('electricalChart'),c=canvas.getContext?.('2d');if(!c)return;
+    const W=1000,H=510,L=120,R=35,plot=W-L-R;
+    c.clearRect(0,0,W,H);c.fillStyle='#fbfdff';c.fillRect(0,0,W,H);
+    if(!d){c.fillStyle='#526779';c.font='18px system-ui';c.fillText('Bitte gültige Werte eingeben.',L,80);return;}
+    const data=electricProfile(d),total=data.reduce((sum,x)=>sum+x.duration,0);
+    const cuts=[0];data.forEach(x=>cuts.push(cuts.at(-1)+x.duration));
+    const panels=[{name:'Spannung',unit:'V AC',color:'#1766a3',values:data.map(()=>d.networkU),top:24},
+      {name:'Netzstrom',unit:'A',color:'#b4671d',values:data.map(x=>x.i),top:174},
+      {name:'Wirkleistung',unit:'W',color:'#0b7655',values:data.map(x=>x.p),top:324}];
+    const xAt=t=>L+plot*t/total;
+    panels.forEach(panel=>{
+      const top=panel.top,bottom=top+111,max=Math.max(...panel.values)*1.18||1;
+      for(let k=0;k<data.length;k++){
+        c.fillStyle=k%2?'#f4f8fb':'#eaf3f9';c.fillRect(xAt(cuts[k]),top,xAt(cuts[k+1])-xAt(cuts[k]),bottom-top);
+      }
+      c.strokeStyle='#bdcdd8';c.lineWidth=1;c.beginPath();c.moveTo(L,top);c.lineTo(L,bottom);c.lineTo(W-R,bottom);c.stroke();
+      c.fillStyle='#23384a';c.font='bold 17px system-ui';c.fillText(panel.name,12,top+22);
+      c.fillStyle='#526779';c.font='14px system-ui';c.fillText(panel.unit,12,top+43);c.fillText('0',L-18,bottom-5);
+      c.beginPath();c.strokeStyle=panel.color;c.lineWidth=4;c.lineJoin='round';
+      panel.values.forEach((v,k)=>{
+        const y=bottom-(v/max)*(bottom-top);
+        if(k===0)c.moveTo(xAt(0),y);
+        else {c.lineTo(xAt(cuts[k]),bottom-(panel.values[k-1]/max)*(bottom-top));c.lineTo(xAt(cuts[k]),y)}
+        c.lineTo(xAt(cuts[k+1]),y);
+      });c.stroke();
+      c.fillStyle=panel.color;c.font='bold 13px system-ui';c.textAlign='right';c.fillText(fmt(Math.max(...panel.values),2)+' '+panel.unit,W-R-6,top+18);c.textAlign='left';
+    });
+    const labels=['Einlegen','Ausrichten','Vakuum','Naht','Kühlen','Prüfen'];
+    c.fillStyle='#526779';c.font='13px system-ui';c.textAlign='center';
+    labels.forEach((label,k)=>{const span=xAt(cuts[k+1])-xAt(cuts[k]);if(span>54)c.fillText(label,(xAt(cuts[k])+xAt(cuts[k+1]))/2,466)});
+    c.textAlign='left';c.fillText('0 s',L,492);c.textAlign='right';c.fillText(fmt(total,2)+' s',W-R,492);c.textAlign='left';
+    if(marker!==null){const px=xAt(Math.min(total,Math.max(0,marker)));c.strokeStyle='#9d2849';c.lineWidth=2;c.setLineDash([6,5]);c.beginPath();c.moveTo(px,20);c.lineTo(px,445);c.stroke();c.setLineDash([]);c.fillStyle='#9d2849';c.fillText(fmt(marker,1)+' s',Math.min(px+7,W-92),443)}
+  }
+  const modelInfo={
+    ready:['Bereit','Inliner einlegen','Die Bedienperson legt die Beutel in den geöffneten Inliner und richtet die Folie aus.'],
+    check:['Freigabe','Sicherheitsbedingungen prüfen','Die Steuerung prüft die Schutzeinrichtung, die Position des Inliners und die Bereitschaft der Geräte.'],
+    insert:['Einlegen','Beutel in den Inliner legen','Die Bedienperson öffnet den Inliner, legt die fertigen Beutel hinein und achtet darauf, dass die Folie frei von eingeklemmten Beuteln bleibt.'],
+    position:['Positionieren','Inliner an der Station','Der Inliner wird an der Absaugdüse und zwischen den noch geöffneten Schweißbacken positioniert.'],
+    vacuum:['Vakuumieren','Luft aus dem Inliner ziehen','Pumpe und Ventil sind angefordert. Die Düse saugt Luft ab; der Inliner legt sich um den Inhalt.'],
+    seal:['Schweißen','Öffnung verschließen','Nach Erreichen des Vakuums schließen die Schweißbacken. Temperatur und Schweißzeit sind Prozessgrößen.'],
+    cool:['Abkühlen','Naht stabilisieren lassen','Die Heizung ist aus. Die Naht bleibt entsprechend dem gewählten Prozess noch gehalten, bevor die Schweißbacken öffnen.'],
+    remove:['Entnehmen','Inliner entnehmen und prüfen','Die Backen öffnen. Die Bedienperson entnimmt den Inliner und prüft Vakuumzustand und Schweißnaht nach den betrieblichen Vorgaben.'],
+    done:['Fertig','Zyklus abgeschlossen','Der Inliner wurde entnommen und geprüft. Die Station kann für den nächsten Zyklus vorbereitet werden.'],
+    fault:['Störung','Ablauf gesperrt','Eine Freigabe oder ein Prozesswert fehlt. Der folgende Schritt wird nicht ausgeführt.']
+  };
+  let modelStage='ready';
+  function setModelStage(stage){
+    modelStage=stage;
+    const [badge,title,body]=modelInfo[stage]||modelInfo.ready;
+    $('modelBadge').textContent=badge;$('modelTitle').textContent=title;$('modelText').textContent=body;
+    drawModel();
+  }
+  function drawModel(){
+    const canvas=$('modelCanvas'),c=canvas.getContext?.('2d');if(!c)return;
+    const W=640,H=360,angle=(Number($('viewAngle').value)||0)*Math.PI/180;
+    c.clearRect(0,0,W,H);
+    const bg=c.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#f6fbff');bg.addColorStop(.55,'#e4f0f8');bg.addColorStop(1,'#cbdeeb');
+    c.fillStyle=bg;c.fillRect(0,0,W,H);
+    const glow=c.createRadialGradient(320,155,22,320,165,285);glow.addColorStop(0,'rgba(255,255,255,.75)');glow.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=glow;c.fillRect(0,0,W,H);
+    const a=angle,tilt=.36;
+    const project=([x,y,z])=>{
+      const xr=x*Math.cos(a)-z*Math.sin(a),zr=x*Math.sin(a)+z*Math.cos(a);
+      const yr=y*Math.cos(tilt)-zr*Math.sin(tilt),depth=y*Math.sin(tilt)+zr*Math.cos(tilt);
+      const k=1.1*520/(520+depth);
+      return [320+xr*k,183+yr*k];
+    };
+    const face=(pts,fill,stroke='#7d99a8',width=1.2)=>{
+      c.beginPath();pts.map(project).forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle=fill;c.fill();
+      if(stroke){c.strokeStyle=stroke;c.lineWidth=width;c.stroke()}
+    };
+    const line=(pts,color,width=4,dash=[])=>{
+      c.beginPath();pts.map(project).forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.setLineDash(dash);c.stroke();c.setLineDash([]);
+    };
+    const box=(x0,x1,y0,y1,z0,z1,top,front,side)=>{
+      face([[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1]],top);
+      face([[x1,y0,z1],[x1,y0,z0],[x1,y1,z0],[x1,y1,z1]],side);
+      face([[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],front);
+    };
+    const pill=(label,x,y,color='#244458')=>{
+      c.font='700 13px system-ui';const w=Math.ceil(c.measureText(label).width)+22;
+      c.fillStyle='rgba(255,255,255,.95)';c.strokeStyle='#afc8d8';c.lineWidth=1;
+      c.beginPath();c.roundRect(x,y,w,27,9);c.fill();c.stroke();c.fillStyle=color;c.fillText(label,x+11,y+18);
+      return [x+w/2,y+13];
+    };
+    const callout=(label,x,y,target,color='#62879d')=>{
+      const [sx,sy]=pill(label,x,y);const [tx,ty]=project(target);
+      c.beginPath();c.moveTo(sx,sy);c.lineTo(tx,ty);c.strokeStyle=color;c.lineWidth=1.4;c.stroke();
+      c.beginPath();c.arc(tx,ty,3,0,Math.PI*2);c.fillStyle=color;c.fill();
+    };
+    const vacuum=modelStage==='vacuum',closed=['seal','cool'].includes(modelStage);
+    const packed=['vacuum','seal','cool','remove','done'].includes(modelStage);
+    const hot=modelStage==='seal',finished=['remove','done'].includes(modelStage);
+    const bagX=packed?84:108,bagZ=packed?43:57,bagTop=finished?-54:packed?-62:-74;
+    // Raster und Sockel geben räumliche Tiefe.
+    c.strokeStyle='rgba(62,115,149,.09)';c.lineWidth=1;
+    for(let x=0;x<W;x+=32){c.beginPath();c.moveTo(x,0);c.lineTo(x,H);c.stroke()}
+    for(let y=0;y<H;y+=32){c.beginPath();c.moveTo(0,y);c.lineTo(W,y);c.stroke()}
+    c.save();c.shadowColor='rgba(25,59,78,.27)';c.shadowBlur=23;c.shadowOffsetY=15;
+    box(-193,193,95,110,-112,112,'#eaf0f4','#a3b6c4','#839ba9');c.restore();
+    box(-193,193,95,110,-112,112,'#eaf0f4','#a3b6c4','#839ba9');
+    face([[-166,94,-89],[166,94,-89],[166,94,89],[-166,94,89]],'#d4e4ed','#b3cbd9');
+    // Führungsschienen, hintere Folienfläche und die verpackten Beutel.
+    line([[-137,87,-77],[-137,-8,-77]],'#91aebc',7);
+    line([[137,87,-77],[137,-8,-77]],'#91aebc',7);
+    face([[-bagX,bagTop,-bagZ],[bagX,bagTop,-bagZ],[bagX,80,-bagZ],[-bagX,80,-bagZ]],'rgba(36,162,211,.27)','#1683ad',1.7);
+    const product=(x0,x1,y0,z0,z1)=>{
+      c.save();c.shadowColor='rgba(38,69,105,.2)';c.shadowBlur=7;c.shadowOffsetY=4;
+      box(x0,x1,y0,77,z0,z1,'#dce5f7','#899dc5','#647ea7');c.restore();
+      box(x0,x1,y0,77,z0,z1,'#dce5f7','#899dc5','#647ea7');
+      const [px,py]=project([(x0+x1)/2,y0+13,z1]);c.fillStyle='rgba(255,255,255,.78)';c.fillRect(px-9,py-5,18,4);
+    };
+    product(-56,-12,4,-24,20);product(8,56,14,-23,22);
+    // Transparente Vorderseite mit Falten und hellem Folienrand.
+    face([[-bagX,bagTop,bagZ],[bagX,bagTop,bagZ],[bagX,80,bagZ],[-bagX,80,bagZ]],'rgba(43,177,219,.21)','#168bb8',2);
+    face([[-bagX,bagTop,-bagZ],[-bagX,bagTop,bagZ],[-bagX,80,bagZ],[-bagX,80,-bagZ]],'rgba(95,205,232,.18)','#168bb8',1.5);
+    line([[-bagX,bagTop,bagZ],[bagX,bagTop,bagZ]],'#4bbce2',4);
+    line([[bagX,bagTop,bagZ],[bagX,80,bagZ]],'rgba(255,255,255,.72)',2);
+    line([[-bagX+16,bagTop+12,bagZ],[-bagX+30,54,bagZ]],'rgba(240,255,255,.6)',2);
+    if(finished)line([[-bagX,bagTop,bagZ],[bagX,bagTop,bagZ]],'#147e92',5);
+    // Absaugschlauch und Düse: während des Vakuumierens eingetaucht.
+    const tip=vacuum?-39:-83;
+    line([[0,-172,0],[0,tip,0]],'#587489',21);
+    line([[0,-172,0],[0,tip,0]],'#c5d9e2',11);
+    box(-12,12,tip-3,tip+10,-12,12,'#a3bfcb','#52768a','#3d5d71');
+    if(vacuum){
+      for(const dx of [-48,-4,40]){
+        line([[dx,30,9],[dx,-27,9]],'#168ac0',3,[6,6]);
+        const [px,py]=project([dx,-31,9]);c.fillStyle='#168ac0';c.beginPath();c.moveTo(px,py-10);c.lineTo(px-5,py+2);c.lineTo(px+5,py+2);c.closePath();c.fill();
+      }
+    }
+    // Schweißbacken: grau geöffnet, orange geschlossen, rot bei aktiver Heizung.
+    const jawY=closed?-52:-96,jawZ=closed?bagZ+3:bagZ+17;
+    if(hot){c.save();c.shadowColor='#f47b30';c.shadowBlur=22;line([[-121,jawY+5,bagZ],[121,jawY+5,bagZ]],'rgba(244,104,28,.7)',15);c.restore()}
+    box(-124,124,jawY,jawY+12,-jawZ-11,-jawZ,hot?'#ffcc83':'#d6e0e7',hot?'#e87728':'#aebfcc','#899ead');
+    box(-124,124,jawY,jawY+12,jawZ,jawZ+11,hot?'#ffc16d':closed?'#f0ae60':'#d6e0e7',hot?'#d66d1e':closed?'#c47b35':'#aebfcc','#907b6b');
+    if(closed)line([[-108,jawY+3,bagZ+1],[108,jawY+3,bagZ+1]],hot?'#ffefaa':'#d2854d',3);
+    // Feste Beschriftungen bleiben auch bei gedrehter Ansicht lesbar.
+    callout('Absaugdüse',14,52,[0,tip,0]);
+    callout('Schweißbacken',466,55,[92,jawY,bagZ+10],hot?'#c76a1d':'#62879d');
+    callout('Inlinerfolie',15,300,[-bagX,31,bagZ]);
+    callout('Beutel',526,300,[34,38,22]);
+    const states={ready:'BEREIT',check:'FREIGABE',insert:'EINLEGEN',position:'AUSRICHTEN',vacuum:'VAKUUM',seal:'SCHWEISSEN',cool:'ABKÜHLEN',remove:'ENTNEHMEN',done:'FERTIG',fault:'STÖRUNG'};
+    c.fillStyle=modelStage==='fault'?'#9b3a38':hot?'#af5319':'#17638a';c.font='700 12px system-ui';c.fillText('MODELLANSICHT  /  '+(states[modelStage]||'BEREIT'),17,24);
+    if(modelStage==='fault'){
+      c.fillStyle='rgba(170,52,48,.12)';c.fillRect(0,0,W,H);
+      c.fillStyle='#9b302d';c.beginPath();c.roundRect(269,155,102,37,10);c.fill();
+      c.fillStyle='#fff';c.font='700 17px system-ui';c.fillText('STOPP',291,180);
+    }
+  }
+  function steps(active=-1,failed=false){$('stepbar').replaceChildren();phases.forEach((p,i)=>{const e=document.createElement('div');e.className='step'+(i<active?' done':'')+(i===active?(failed?' failed':' active'):'');e.textContent=p;$('stepbar').append(e)});}
+  function nodes(active=[]){for(const id of ['nSupply','nControl','nSafety','nPump','nValve','nSeal'])$(id).classList.toggle('active',active.includes(id));}
+  function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+  function freeze(on){running=on;document.querySelectorAll('input:not([type="range"])').forEach(e=>e.disabled=on);$('demoTempo').disabled=on;$('run').disabled=on;$('reset').disabled=on;$('stop').disabled=!on}
+  function end(message,type,idx,failed=false){token++;freeze(false);nodes([]);steps(idx,failed);setModelStage(failed?'fault':'ready');setStatus('runStatus',message,type)}
+  async function hold(mine,d,start,duration,seconds){
+    const stepsCount=Math.max(1,Math.round(seconds*5));
+    for(let k=0;k<stepsCount;k++){
+      chartTime=start+duration*k/stepsCount;drawElectrical(d,chartTime);
+      await wait(seconds*1000/stepsCount);if(mine!==token)return false;
+    }
+    chartTime=start+duration;drawElectrical(d,chartTime);return true;
+  }
+  async function run(){
+    if(running)return;
+    const d=calculate();if(!d){setModelStage('fault');setStatus('runStatus','Start gesperrt: ungültige Eingaben.','error');return;}
+    const mine=++token,seconds=Number($('demoTempo').value)||5,electric=electricProfile(d);
+    freeze(true);steps(0);setModelStage('check');nodes(['nSupply','nControl']);setStatus('runStatus','Freigabe: Schutzeinrichtung, Position und Gerätebereitschaft werden geprüft.');
+    if(!await hold(mine,d,0,0,seconds))return;
+    const missing=[];
+    if(!d.guard)missing.push('Schutzeinrichtung offen');if(!d.bag)missing.push('Inliner nicht positioniert');if(!d.vacReady)missing.push('Vakuumgerät nicht bereit');if(!d.sealReady)missing.push('Schweißgerät nicht bereit');
+    if(missing.length){end('Start gesperrt: '+missing.join('; ')+'.','error',0,true);return;}
+    const states=[
+      ['insert','Die Bedienperson legt die Beutel in den geöffneten Inliner.',['nSupply','nControl','nSafety']],
+      ['position','Der Inliner wird glatt ausgerichtet und an Düse und Backen positioniert.',['nSupply','nControl','nSafety']],
+      ['vacuum','K1 und Y1 angefordert: Die Pumpe vakuumiert bis zur Druckprüfung.',['nSupply','nControl','nSafety','nPump','nValve']],
+      ['seal','K2 angefordert: Die Schweißbacken schließen und die Heizung arbeitet.',['nSupply','nControl','nSafety','nSeal']],
+      ['cool','Heizung aus: Die Naht kühlt vor der Freigabe ab.',['nSupply','nControl','nSafety']],
+      ['remove','Die Backen sind offen: Inliner entnehmen und Naht sowie Vakuum prüfen.',['nSupply','nControl','nSafety']]
+    ];
+    let elapsed=0;
+    for(let i=0;i<states.length;i++){
+      if(i===2&&electric[2].i>d.currentMax){end(`Überstrom im Konzept: Pumpe benötigt geschätzt ${fmt(electric[2].i,2)} A, Grenze ${fmt(d.currentMax,2)} A. Pumpe bleibt gesperrt.`,'error',3,true);return;}
+      if(i===3&&d.vacActual>d.vacTarget){end(`Druckfehler: ${fmt(d.vacActual)} kPa erreicht, erforderlich sind höchstens ${fmt(d.vacTarget)} kPa absolut. Schweißen bleibt gesperrt.`,'error',3,true);return;}
+      if(i===3&&d.vacActual<d.vacMin){end(`Druckfehler: ${fmt(d.vacActual)} kPa unterschreiten die Untergrenze ${fmt(d.vacMin)} kPa absolut. Schweißen bleibt gesperrt.`,'error',3,true);return;}
+      if(i===3&&(d.tempActual<d.tempMin||d.tempActual>d.tempMax)){end(`Störung: ${fmt(d.tempActual)} °C liegt außerhalb von ${fmt(d.tempMin)} bis ${fmt(d.tempMax)} °C. Schweißen bleibt gesperrt.`,'error',4,true);return;}
+      if(i===3&&electric[3].i>d.currentMax){end(`Überstrom im Konzept: Schweißphase benötigt geschätzt ${fmt(electric[3].i,2)} A, Grenze ${fmt(d.currentMax,2)} A. Heizung bleibt gesperrt.`,'error',4,true);return;}
+      const [stage,message,active]=states[i];steps(i+1);setModelStage(stage);nodes(active);setStatus('runStatus',message,i===5?'ok':'');
+      if(i===3&&d.currentActual>d.currentMax){chartTime=elapsed;drawElectrical(d,chartTime);await wait(Math.min(500,seconds*1000/5));if(mine!==token)return;end(`Überstrom erkannt: ${fmt(d.currentActual,2)} A beim Schweißen, Grenze ${fmt(d.currentMax,2)} A. Ausgänge deaktiviert; Fehler prüfen.`,'error',4,true);return;}
+      if(!await hold(mine,d,elapsed,d.times[i].proposed,seconds))return;
+      elapsed+=d.times[i].proposed;
+    }
+    nodes([]);steps(7);setModelStage('done');freeze(false);setStatus('runStatus','Zyklus abgeschlossen. Vakuum und Naht nach den Qualitätsvorgaben beurteilen.','ok');
+  }
+  buildRows();apply(safeLoad());steps();setModelStage('ready');
+  document.querySelectorAll('input').forEach(e=>e.addEventListener('input',calculate));
+  numericInputIds.forEach(id=>$(id).addEventListener('blur',()=>{const value=germanNumber($(id).value);if(Number.isFinite(value))$(id).value=fmt(value,2);calculate()}));
+  $('viewAngle').addEventListener('input',drawModel);
+  $('run').addEventListener('click',run);
+  $('stop').addEventListener('click',()=>{if(running)end('Zyklus manuell gestoppt. Neuer Start erst nach erneuter Prüfung.','warn',-1)});
+  $('reset').addEventListener('click',()=>{try{localStorage.removeItem('inliner-demo-v1')}catch{}chartTime=null;apply(structuredClone(defaults));nodes([]);steps();setModelStage('ready');setStatus('runStatus','Beispielwerte geladen. Bereit für einen neuen Zyklus.')});
+})();
+</script>
+</body>
+</html>
